@@ -49,10 +49,10 @@ input,button,textarea{font-family:'DM Sans',sans-serif}
 .ob-hero-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;padding:4px}
 .ob-hero-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px}
 .ob-content{position:relative;padding:0 24px calc(40px + var(--sb));display:flex;flex-direction:column;gap:16px}
-.ob-logo{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.ob-logo{display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:nowrap;overflow:hidden}
 .ob-logo-mark{width:48px;height:48px;border-radius:14px;background:linear-gradient(135deg,var(--spoon),var(--spoon2));display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(255,209,102,0.4)}
 .ob-logo-mark img{width:34px;height:34px;object-fit:contain;transform:rotate(-30deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3))}
-.ob-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(32px,10vw,52px);line-height:1;letter-spacing:1px;background:linear-gradient(135deg,var(--spoon),var(--spoon2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.ob-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,8vw,48px);line-height:1;letter-spacing:1px;background:linear-gradient(135deg,var(--spoon),var(--spoon2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap;overflow:hidden;text-overflow:clip;min-width:0;flex:1}
 .ob-sub{font-size:16px;color:var(--text2);line-height:1.6}
 .ob-btn{width:100%;background:linear-gradient(135deg,var(--spoon),var(--spoon2));border:none;border-radius:18px;padding:18px;font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;color:#000;cursor:pointer}
 .ob-login{text-align:center;font-size:14px;color:var(--text3);cursor:pointer}
@@ -290,11 +290,9 @@ body.light .bnav{background:rgba(250,250,250,0.96);border-top:0.5px solid rgba(0
   <div class="ob-content">
     <div class="ob-logo">
       <div class="ob-logo-mark"><img src="spoon_real.png" alt="🥄"></div>
-      <div>
-        <div class="ob-title">SpoonDropping</div>
-        <div style="font-size:13px;color:var(--text2)">Drop your spoon. Own the spot.</div>
-      </div>
+      <div class="ob-title">SpoonDropping</div>
     </div>
+    <div style="font-size:13px;color:var(--text2);margin-top:-8px">Drop your spoon. Own the spot.</div>
     <div class="ob-sub">The world's most absurd social network.<br>Strike the pose. Drop it on the map. Legend.</div>
     <button class="ob-btn" onclick="showAuth('signup')">🥄 Create Account</button>
     <div class="ob-login" onclick="showAuth('login')">Already a Spooner? <span>Sign In</span></div>
