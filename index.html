@@ -560,6 +560,9 @@ body.light .bnav{background:rgba(250,250,250,0.96);border-top:0.5px solid rgba(0
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+// ── CONFIG API ──
+const API_URL = 'https://b1a9-2001-861-206-bb60-2094-8de8-5b0e-5909.ngrok-free.app'; // ngrok tunnel
+
 // ── DATA ──
 const PHOTOS=['spoon1.png','spoon2.png','spoon3.png','spoon4.png','spoon1.png','spoon3.png'];
 const AVATARS=['https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=80&q=80','https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&q=80','https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&q=80','https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=80&q=80','https://images.unsplash.com/photo-1520813792240-56fc4a3765a7?w=80&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=80'];
@@ -600,21 +603,57 @@ function checkLoginReady(){
   document.getElementById('login-btn').disabled=!(e.includes('@')&&p.length>=6);
 }
 
-function doSignup(){
+async function doSignup(){
+  const btn=document.getElementById('signup-btn');
   const u=document.getElementById('reg-user').value.trim();
   const e=document.getElementById('reg-email').value.trim();
-  // Store locally for MVP (will be replaced by real API)
-  currentUser={username:'@'+u.replace('@',''),email:e,drops:0};
-  localStorage.setItem('spoon_user',JSON.stringify(currentUser));
-  enterApp();
+  const p=document.getElementById('reg-pass').value;
+  btn.textContent='Creating account...'; btn.disabled=true;
+  try {
+    const res = await fetch(API_URL+'/api/auth/signup', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username:u, email:e, password:p})
+    });
+    const data = await res.json();
+    if(data.success){
+      currentUser = data.data.user;
+      localStorage.setItem('spoon_token', data.data.token);
+      localStorage.setItem('spoon_user', JSON.stringify(currentUser));
+      enterApp();
+    } else {
+      alert('❌ '+data.message);
+      btn.textContent='CREATE ACCOUNT'; btn.disabled=false;
+    }
+  } catch(err) {
+    alert('❌ Cannot connect to server. Make sure the backend is running!');
+    btn.textContent='CREATE ACCOUNT'; btn.disabled=false;
+  }
 }
 
-function doLogin(){
+async function doLogin(){
+  const btn=document.getElementById('login-btn');
   const e=document.getElementById('login-email').value.trim();
-  // MVP: just set user from localStorage or create guest
-  const saved=localStorage.getItem('spoon_user');
-  currentUser=saved?JSON.parse(saved):{username:'@spooner',email:e,drops:0};
-  enterApp();
+  const p=document.getElementById('login-pass').value;
+  btn.textContent='Signing in...'; btn.disabled=true;
+  try {
+    const res = await fetch(API_URL+'/api/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email:e, password:p})
+    });
+    const data = await res.json();
+    if(data.success){
+      currentUser = data.data.user;
+      localStorage.setItem('spoon_token', data.data.token);
+      localStorage.setItem('spoon_user', JSON.stringify(currentUser));
+      enterApp();
+    } else {
+      alert('❌ '+data.message);
+      btn.textContent='SIGN IN'; btn.disabled=false;
+    }
+  } catch(err) {
+    alert('❌ Cannot connect to server!');
+    btn.textContent='SIGN IN'; btn.disabled=false;
+  }
 }
 
 function skipAuth(){
@@ -633,7 +672,13 @@ function enterApp(){
   updateProfileUI();
   document.getElementById('bnav').style.display='flex';
   showScreen('feed');
-  renderFeed();
+  renderFeed(); // Show mock data first
+  // Then try to load real drops
+  loadDrops().then(drops => {
+    if(drops && drops.length > 0) {
+      console.log('✅ Loaded '+drops.length+' real drops from API');
+    }
+  });
 }
 
 function updateProfileUI(){
@@ -660,6 +705,20 @@ function showScreen(name){
 function switchScreen(name){showScreen(name)}
 
 // ── FEED ──
+async function loadDrops(){
+  try {
+    const res = await fetch(API_URL+'/api/drops?sort=hot');
+    const data = await res.json();
+    if(data.success && data.data.length > 0){
+      // Mix real drops with mock data
+      return data.data;
+    }
+  } catch(err) {
+    console.log('Using mock data - API not available');
+  }
+  return null;
+}
+
 function renderFeed(){
   const c=document.getElementById('feed-scroll');
   c.innerHTML='';
@@ -774,24 +833,53 @@ function checkReady(){
   document.getElementById('drop-btn').disabled=!(hasPhoto&&hasGeo);
 }
 
-function submitSpoon(){
+async function submitSpoon(){
   const btn=document.getElementById('drop-btn');
   btn.textContent='⏳ Sending...'; btn.disabled=true;
-  setTimeout(()=>{
-    if(currentUser) currentUser.drops=(currentUser.drops||0)+1;
-    updateProfileUI();
-    document.getElementById('success').classList.add('show');
-    btn.textContent='🥄 DROP MY SPOON'; hasPhoto=false; hasGeo=false;
-    document.getElementById('d-cap').value='';
-    document.getElementById('geo-val').textContent='Tap to detect location';
-    document.getElementById('geo-val').className='geo-val';
-    document.getElementById('geo-row').className='geo-row';
-    const dz=document.getElementById('dz');
-    const img=dz.querySelector('img.preview'); if(img) img.remove();
-    dz.classList.remove('has-img');
-    document.getElementById('dz-overlay').querySelector('.dz-title').textContent='Take your Spoon shot';
-    document.getElementById('dz-overlay').querySelector('.dz-sub').textContent='Strike the pose. Drop it on the map.';
-  },1400);
+  try {
+    const formData = new FormData();
+    formData.append('username', currentUser?.username || 'Anonymous');
+    formData.append('caption', document.getElementById('d-cap').value);
+    formData.append('lat', window._lat || 45.757);
+    formData.append('lng', window._lng || 4.832);
+    formData.append('location', document.getElementById('geo-val').textContent);
+    // Add photo if selected
+    const photoInput = document.getElementById('photo-input');
+    if(photoInput.files[0]) formData.append('photo', photoInput.files[0]);
+    const token = localStorage.getItem('spoon_token') || '';
+    const res = await fetch(API_URL+'/api/drops/submit', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+token},
+      body: formData
+    });
+    const data = await res.json();
+    if(data.success){
+      if(currentUser) currentUser.drops=(currentUser.drops||0)+1;
+      localStorage.setItem('spoon_user', JSON.stringify(currentUser));
+      updateProfileUI();
+      document.getElementById('success').classList.add('show');
+      resetDropForm();
+    } else {
+      alert('❌ '+data.message);
+    }
+  } catch(err) {
+    alert('❌ Cannot connect to server!');
+  }
+  btn.textContent='🥄 DROP MY SPOON'; btn.disabled=false;
+}
+
+function resetDropForm(){
+  hasPhoto=false; hasGeo=false;
+  document.getElementById('d-cap').value='';
+  document.getElementById('geo-val').textContent='Tap to detect location';
+  document.getElementById('geo-val').className='geo-val';
+  document.getElementById('geo-row').className='geo-row';
+  document.getElementById('photo-input').value='';
+  const dz=document.getElementById('dz');
+  const img=dz.querySelector('img.preview'); if(img) img.remove();
+  dz.classList.remove('has-img');
+  document.getElementById('dz-overlay').querySelector('.dz-title').textContent='Take your Spoon shot';
+  document.getElementById('dz-overlay').querySelector('.dz-sub').textContent='Strike the pose. Drop it on the map.';
 }
 
 function closeSuccess(){
@@ -845,10 +933,15 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch
 
 // Check if user already logged in
 const saved=localStorage.getItem('spoon_user');
-if(saved){
+const token=localStorage.getItem('spoon_token');
+if(saved && token){
   currentUser=JSON.parse(saved);
-  enterApp();
-}
+  // Verify token with API
+  fetch(API_URL+'/api/auth/me', {headers:{'Authorization':'Bearer '+token}})
+    .then(r=>r.json())
+    .then(d=>{ if(d.success){ currentUser=d.data; enterApp(); } else { showScreen('onboard'); }})
+    .catch(()=>{ currentUser=JSON.parse(saved); enterApp(); }); // Fallback to local if API down
+} 
 // else show onboarding
 </script>
 </body>
