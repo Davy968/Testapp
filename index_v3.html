@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0a">
+<title>SpoonDropping 🥄</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root {
+  --bg: #0a0a0a;
+  --bg2: #141414;
+  --bg3: #1e1e1e;
+  --border: rgba(255,255,255,0.08);
+  --text: #f0ede8;
+  --text2: #aaa;
+  --text3: #555;
+  --spoon: #FFD166;
+  --spoon2: #FF9F1C;
+  --hot: #FF4D6D;
+  --cool: #4CC9F0;
+  --green: #06D6A0;
+  --shadow: rgba(0,0,0,0.08);
+  --safe-top: env(safe-area-inset-top, 44px);
+  --safe-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+/* LIGHT MODE */
+body.light {
+  --bg: #fafafa;
+  --bg2: #ffffff;
+  --bg3: #f0f0f0;
+  --border: rgba(0,0,0,0.08);
+  --text: #1a1a1a;
+  --text2: #666;
+  --text3: #aaa;
+  --spoon: #E8960A;
+  --spoon2: #CC7700;
+  --hot: #E91E63;
+  --shadow: rgba(0,0,0,0.06);
+}
+body.light .status-bar{background:var(--bg)}
+body.light .bnav{background:rgba(250,250,250,0.96);border-top:0.5px solid rgba(0,0,0,0.1)}
+body.light .feed-divider{background:#f0f0f0}
+body.light .leaflet-container{background:#e8e8e8 !important}
+body.light .logo-text{background:linear-gradient(135deg,var(--spoon),var(--spoon2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{height:100%;height:100dvh}
+body{width:100%;height:100%;height:100dvh;overflow:hidden;background:var(--bg)}
+body{font-family:'DM Sans',sans-serif;color:var(--text);touch-action:manipulation}
+
+.screen{
+  position:fixed;top:0;left:0;right:0;
+  height:100%;
+  height:100dvh; /* dynamic viewport height - fixes mobile browser bar */
+  display:flex;flex-direction:column;
+  transition:opacity 0.25s,transform 0.25s;
+  overflow:hidden;
+}
+.screen.hidden{opacity:0;pointer-events:none;transform:translateY(6px)}
+
+/* STATUS BAR */
+.status-bar{height:calc(var(--safe-top));flex-shrink:0;background:var(--bg)}
+
+/* HEADER */
+.app-header{display:flex;align-items:center;justify-content:space-between;padding:6px 16px 10px;flex-shrink:0}
+.logo{display:flex;align-items:center;gap:8px}
+.logo-mark{
+  width:34px;height:34px;border-radius:10px;
+  background:linear-gradient(135deg,var(--spoon),var(--spoon2));
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;transform:rotate(-25deg);
+  box-shadow:0 4px 14px rgba(255,209,102,0.35);
+}
+.logo-text{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1px;
+  background:linear-gradient(135deg,var(--spoon),var(--spoon2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hdr-icons{display:flex;gap:10px;align-items:center}
+.hdr-icon{width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+/* SVG icons */
+svg{display:block}
+
+/* STORIES ROW */
+.stories{display:flex;gap:12px;padding:4px 16px 14px;overflow-x:auto;flex-shrink:0}
+.stories::-webkit-scrollbar{display:none}
+.story-item{display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;flex-shrink:0}
+.story-ring{
+  width:64px;height:64px;border-radius:50%;
+  background:linear-gradient(135deg,var(--spoon),var(--hot),var(--cool));
+  padding:2.5px;
+}
+.story-ring.yours{background:var(--bg3);border:2px dashed var(--text3)}
+.story-avatar{
+  width:100%;height:100%;border-radius:50%;
+  background:var(--bg2);border:2.5px solid var(--bg);
+  overflow:hidden;display:flex;align-items:center;justify-content:center;
+  font-size:22px;font-weight:700;
+}
+.story-avatar img{width:100%;height:100%;object-fit:cover}
+.story-name{font-size:10px;color:var(--text2);max-width:64px;text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.story-add{
+  position:relative;
+}
+.story-add-btn{
+  position:absolute;bottom:-2px;right:-2px;
+  width:20px;height:20px;border-radius:50%;
+  background:var(--cool);border:2px solid var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:700;color:#000;
+}
+
+/* FEED TABS */
+.feed-tabs{display:flex;padding:0 16px 10px;gap:18px;flex-shrink:0;border-bottom:1px solid var(--border)}
+.feed-tab{font-size:13px;font-weight:500;color:var(--text3);cursor:pointer;padding-bottom:8px;
+  border-bottom:2px solid transparent;transition:all 0.2s;margin-bottom:-1px}
+.feed-tab.active{color:var(--spoon);border-bottom-color:var(--spoon)}
+
+/* FEED */
+.feed-scroll{flex:1;overflow-y:auto;padding-bottom:calc(80px + var(--safe-bottom));-webkit-overflow-scrolling:touch}
+.feed-scroll::-webkit-scrollbar{display:none}
+
+/* CARD */
+.spoon-card{margin-bottom:1px;background:var(--bg);animation:cardIn 0.35s ease both;transition:background 0.3s}
+@keyframes cardIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+.card-top{display:flex;align-items:center;gap:10px;padding:10px 14px}
+.card-av{
+  width:38px;height:38px;border-radius:50%;
+  background:linear-gradient(135deg,var(--spoon),var(--hot));
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;font-weight:700;color:#000;flex-shrink:0;
+  overflow:hidden;border:2px solid transparent;
+  background-clip:padding-box;
+  box-shadow:0 0 0 2px var(--spoon);
+}
+.card-av img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.card-meta{flex:1}
+.card-user{font-size:13px;font-weight:600}
+.card-loc{font-size:11px;color:var(--text2);display:flex;align-items:center;gap:3px;margin-top:1px}
+.card-more{cursor:pointer;padding:4px;color:var(--text2)}
+
+.card-media{
+  width:100%;aspect-ratio:1/1;
+  position:relative;overflow:hidden;background:var(--bg3);
+  display:flex;align-items:center;justify-content:center;
+}
+.card-media img{width:100%;height:100%;object-fit:cover;display:block}
+.card-score-badge{
+  position:absolute;top:12px;right:12px;
+  background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);
+  border:1px solid rgba(255,209,102,0.4);
+  border-radius:20px;padding:4px 10px;
+  font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--spoon);
+  letter-spacing:1px;
+}
+.card-badge-pill{
+  position:absolute;bottom:12px;left:12px;
+  border-radius:20px;padding:4px 10px;
+  font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+}
+.badge-legendary{background:rgba(255,77,109,0.85);color:#fff}
+.badge-epic{background:rgba(255,159,28,0.85);color:#000}
+.badge-solid{background:rgba(6,214,160,0.85);color:#000}
+
+.card-placeholder{
+  width:100%;aspect-ratio:1/1;
+  background:linear-gradient(135deg,#1a1a1a,#222);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+}
+.placeholder-spoon{font-size:56px;animation:floatSpoon 3s ease-in-out infinite}
+@keyframes floatSpoon{0%,100%{transform:rotate(-15deg) translateY(0)}50%{transform:rotate(-15deg) translateY(-10px)}}
+
+/* ACTIONS */
+.card-actions{display:flex;align-items:center;padding:10px 14px 6px;gap:16px}
+.act{display:flex;align-items:center;gap:5px;cursor:pointer;transition:transform 0.15s}
+.act svg{transition:transform 0.2s cubic-bezier(0.175,0.885,0.32,1.275),fill 0.15s,stroke 0.15s}
+.act:active{transform:scale(0.88)}
+.act-count{font-size:13px;font-weight:600;color:var(--text2)}
+.act.liked .act-count{color:var(--hot)}
+.act-save{margin-left:auto}
+
+.card-caption{padding:2px 14px 10px}
+.card-caption-text{font-size:13px;line-height:1.5}
+.card-caption-text strong{color:var(--text);font-weight:600}
+.card-time{font-size:11px;color:var(--text3);margin-top:3px}
+
+/* DIVIDER */
+.feed-divider{height:8px;background:var(--bg2)}
+
+/* DROP SCREEN */
+#drop-screen{background:var(--bg)}
+.drop-scroll{flex:1;overflow-y:auto;padding:0 16px;padding-bottom:calc(100px + var(--safe-bottom));-webkit-overflow-scrolling:touch}
+.drop-scroll::-webkit-scrollbar{display:none}
+
+.drop-zone{
+  width:100%;aspect-ratio:1/1;
+  background:var(--bg2);border-radius:20px;
+  border:2px dashed rgba(255,209,102,0.25);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;cursor:pointer;transition:all 0.2s;
+  position:relative;overflow:hidden;margin-bottom:20px;
+}
+.drop-zone.has-img{border-style:solid;border-color:var(--spoon)}
+.drop-zone img.preview{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.drop-zone-overlay{
+  position:relative;z-index:1;
+  background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);
+  border-radius:14px;padding:14px 20px;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+}
+.dz-icon{font-size:36px}
+.dz-title{font-size:15px;font-weight:600;color:var(--spoon)}
+.dz-sub{font-size:12px;color:var(--text2);text-align:center}
+
+.inp-group{margin-bottom:14px}
+.inp-label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--text3);margin-bottom:6px}
+.inp{
+  width:100%;background:var(--bg2);border:1px solid var(--border);
+  border-radius:14px;padding:14px 16px;
+  color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px;
+  transition:border-color 0.2s;
+}
+.inp:focus{outline:none;border-color:var(--spoon)}
+.inp::placeholder{color:var(--text3)}
+
+.geo-row{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:14px;padding:14px 16px;
+  display:flex;align-items:center;gap:10px;cursor:pointer;transition:border-color 0.2s;
+}
+.geo-row.ok{border-color:var(--green)}
+.geo-val{flex:1;font-size:14px;color:var(--text2)}
+.geo-val.ok{color:var(--green)}
+
+.drop-btn{
+  width:100%;margin-top:20px;
+  background:linear-gradient(135deg,var(--spoon),var(--spoon2));
+  border:none;border-radius:18px;padding:18px;
+  font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:2px;
+  color:#000;cursor:pointer;transition:transform 0.15s,opacity 0.2s;
+}
+.drop-btn:active{transform:scale(0.97)}
+.drop-btn:disabled{opacity:0.35;cursor:not-allowed;transform:none}
+
+/* MAP */
+#map-screen{background:var(--bg)}
+#map{flex:1;min-height:0}
+.map-topbar{padding:8px 16px 12px;flex-shrink:0}
+.map-search{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:14px;padding:12px 16px;
+  display:flex;align-items:center;gap:8px;
+}
+.map-search input{flex:1;background:none;border:none;outline:none;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif}
+.map-search input::placeholder{color:var(--text3)}
+.leaflet-container{background:#111 !important}
+.sp-mk{cursor:pointer;animation:mkIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275)}
+@keyframes mkIn{from{transform:scale(0) translateY(-8px)}to{transform:scale(1) translateY(0)}}
+.leaflet-popup-content-wrapper{background:var(--bg2)!important;border:1px solid var(--border)!important;border-radius:16px!important;box-shadow:0 8px 32px rgba(0,0,0,0.7)!important}
+.leaflet-popup-tip{background:var(--bg2)!important}
+.leaflet-popup-content{color:var(--text)!important;font-family:'DM Sans',sans-serif!important;margin:12px 16px!important}
+.pop-user{font-weight:700;font-size:14px;margin-bottom:2px}
+.pop-loc{font-size:11px;color:var(--text2);margin-bottom:6px}
+.pop-score{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--spoon)}
+
+/* BOTTOM NAV */
+.bnav{
+  position:fixed;bottom:0;left:0;right:0;
+  height:calc(58px + var(--safe-bottom));
+  background:rgba(8,8,8,0.96);backdrop-filter:blur(20px);
+  border-top:0.5px solid rgba(255,255,255,0.1);
+  display:flex;align-items:flex-start;padding-top:8px;
+  z-index:200;
+}
+.ni{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:2px 0;transition:transform 0.15s}
+.ni:active{transform:scale(0.88)}
+.ni-icon{width:26px;height:26px;display:flex;align-items:center;justify-content:center;opacity:0.35;transition:opacity 0.2s}
+.ni-label{font-size:9px;color:var(--text3);font-weight:500;letter-spacing:0.3px}
+.ni.active .ni-icon{opacity:1}
+.ni.active .ni-label{color:var(--spoon)}
+.ni-fab{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;padding:2px 0;
+}
+.ni-fab-btn{
+  width:48px;height:48px;border-radius:14px;
+  background:linear-gradient(135deg,var(--spoon),var(--spoon2));
+  display:flex;align-items:center;justify-content:center;
+  margin-top:-22px;
+  box-shadow:0 4px 18px rgba(255,209,102,0.45);
+  transition:transform 0.15s;
+}
+.ni-fab:active .ni-fab-btn{transform:scale(0.9) rotate(-15deg)}
+.ni-fab-label{font-size:9px;color:var(--text3);font-weight:500}
+
+/* SUCCESS */
+.success{
+  position:fixed;inset:0;background:rgba(0,0,0,0.92);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:500;gap:16px;opacity:0;pointer-events:none;transition:opacity 0.3s;
+}
+.success.show{opacity:1;pointer-events:all}
+.success-sp{font-size:72px;animation:sspin 0.7s cubic-bezier(0.175,0.885,0.32,1.275)}
+@keyframes sspin{from{transform:scale(0) rotate(-180deg)}to{transform:scale(1) rotate(-25deg)}}
+.success-t{font-family:'Bebas Neue',sans-serif;font-size:44px;color:var(--spoon);letter-spacing:2px}
+.success-s{font-size:14px;color:var(--text2);text-align:center;line-height:1.7;padding:0 36px}
+.success-btn{
+  background:var(--spoon);border:none;border-radius:16px;
+  padding:14px 32px;font-family:'Bebas Neue',sans-serif;
+  font-size:20px;letter-spacing:1px;color:#000;cursor:pointer;margin-top:8px;
+}
+#photo-input{display:none}
+</style>
+</head>
+<body>
+
+<svg style="position:absolute;width:0;height:0">
+  <defs>
+    <!-- Silver gradient for bowl -->
+    <radialGradient id="bowl-grad" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="20%" stop-color="#e8e8e8"/>
+      <stop offset="50%" stop-color="#b0b8c8"/>
+      <stop offset="80%" stop-color="#7a8898"/>
+      <stop offset="100%" stop-color="#4a5568"/>
+    </radialGradient>
+    <!-- Bowl shadow -->
+    <radialGradient id="bowl-shadow" cx="50%" cy="50%" r="50%">
+      <stop offset="60%" stop-color="transparent"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.3)"/>
+    </radialGradient>
+    <!-- Handle gradient -->
+    <linearGradient id="handle-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4a5568"/>
+      <stop offset="15%" stop-color="#9aa5b4"/>
+      <stop offset="35%" stop-color="#ffffff"/>
+      <stop offset="50%" stop-color="#d0d8e8"/>
+      <stop offset="70%" stop-color="#8a95a8"/>
+      <stop offset="85%" stop-color="#c0c8d8"/>
+      <stop offset="100%" stop-color="#4a5568"/>
+    </linearGradient>
+    <!-- Legendary red glow -->
+    <radialGradient id="pin-legendary" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FF6B8A"/>
+      <stop offset="100%" stop-color="#CC1A3A"/>
+    </radialGradient>
+    <!-- Epic gold glow -->
+    <radialGradient id="pin-epic" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="100%" stop-color="#CC8800"/>
+    </radialGradient>
+    <!-- Solid grey -->
+    <radialGradient id="pin-solid" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#6B7280"/>
+      <stop offset="100%" stop-color="#374151"/>
+    </radialGradient>
+    <!-- Drop shadow filter -->
+    <filter id="spoon-shadow" x="-30%" y="-20%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="rgba(0,0,0,0.5)"/>
+    </filter>
+    <filter id="spoon-glow" x="-30%" y="-20%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="rgba(255,209,102,0.6)"/>
+    </filter>
+  </defs>
+</svg>
+
+<!-- FEED -->
+<div class="screen" id="feed-screen">
+  <div class="status-bar"></div>
+  <div class="app-header">
+    <div class="logo">
+      <div class="logo-mark">🥄</div>
+      <div class="logo-text">SpoonDropping</div>
+    </div>
+    <div class="hdr-icons">
+      <!-- Theme toggle -->
+      <div class="hdr-icon" onclick="toggleTheme()" id="theme-btn" title="Toggle theme">
+        <svg id="theme-icon-dark" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <svg id="theme-icon-light" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </div>
+      <!-- Bell icon -->
+      <div class="hdr-icon" onclick="alert('🥄 @davy_drops just dropped near you!')">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+      </div>
+      <!-- DM icon -->
+      <div class="hdr-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- STORIES -->
+  <div class="stories">
+    <div class="story-item story-add" onclick="switchScreen('drop')">
+      <div class="story-ring yours">
+        <div class="story-avatar" style="font-size:28px">👤</div>
+      </div>
+      <div class="story-add-btn">+</div>
+      <div class="story-name">Your drop</div>
+    </div>
+    <div class="story-item">
+      <div class="story-ring"><div class="story-avatar"><img src="https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=80&q=80" alt=""></div></div>
+      <div class="story-name">@spoon_god</div>
+    </div>
+    <div class="story-item">
+      <div class="story-ring"><div class="story-avatar"><img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&q=80" alt=""></div></div>
+      <div class="story-name">@greg_spoon</div>
+    </div>
+    <div class="story-item">
+      <div class="story-ring"><div class="story-avatar"><img src="https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=80&q=80" alt=""></div></div>
+      <div class="story-name">@cuillere</div>
+    </div>
+    <div class="story-item">
+      <div class="story-ring"><div class="story-avatar"><img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&q=80" alt=""></div></div>
+      <div class="story-name">@davy_drops</div>
+    </div>
+    <div class="story-item">
+      <div class="story-ring"><div class="story-avatar"><img src="https://images.unsplash.com/photo-1520813792240-56fc4a3765a7?w=80&q=80" alt=""></div></div>
+      <div class="story-name">@spoonzilla</div>
+    </div>
+  </div>
+
+  <div class="feed-tabs">
+    <div class="feed-tab active" onclick="setTab(this)">🔥 Hot</div>
+    <div class="feed-tab" onclick="setTab(this)">⚡ Latest</div>
+    <div class="feed-tab" onclick="setTab(this)">📍 Nearby</div>
+    <div class="feed-tab" onclick="setTab(this)">👑 Legendary</div>
+  </div>
+
+  <div class="feed-scroll" id="feed-scroll"></div>
+</div>
+
+<!-- DROP -->
+<div class="screen hidden" id="drop-screen">
+  <div class="status-bar"></div>
+  <div class="app-header">
+    <div class="logo">
+      <div class="logo-mark">🥄</div>
+      <div class="logo-text">Drop My Spoon</div>
+    </div>
+  </div>
+  <div class="drop-scroll">
+    <div class="drop-zone" id="dz" onclick="document.getElementById('photo-input').click()">
+      <div class="drop-zone-overlay" id="dz-overlay">
+        <div class="dz-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--spoon)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+        </div>
+        <div class="dz-title">Take your Spoon shot</div>
+        <div class="dz-sub">Strike the pose. Drop it on the map.</div>
+      </div>
+    </div>
+    <input type="file" id="photo-input" accept="image/*" capture="environment" onchange="handlePhoto(this)">
+
+    <div class="inp-group">
+      <div class="inp-label">Spoon Name</div>
+      <input class="inp" id="d-user" type="text" placeholder="@your_spoon_name" maxlength="30" oninput="checkReady()">
+    </div>
+    <div class="inp-group">
+      <div class="inp-label">Caption</div>
+      <input class="inp" id="d-cap" type="text" placeholder="This spoon is pure art 🥄" maxlength="100">
+    </div>
+    <div class="inp-group">
+      <div class="inp-label">Location</div>
+      <div class="geo-row" id="geo-row" onclick="detectGeo()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+        </svg>
+        <span class="geo-val" id="geo-val">Tap to detect location</span>
+        <svg id="geo-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    </div>
+
+    <button class="drop-btn" id="drop-btn" onclick="submitSpoon()" disabled>🥄 DROP MY SPOON</button>
+  </div>
+</div>
+
+<!-- MAP -->
+<div class="screen hidden" id="map-screen">
+  <div class="status-bar"></div>
+  <div class="app-header">
+    <div class="logo">
+      <div class="logo-mark">🥄</div>
+      <div class="logo-text">Spoon Map</div>
+    </div>
+    <div class="hdr-icons">
+      <div class="hdr-icon" onclick="centerMap()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="map-topbar">
+    <div class="map-search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Search city, place...">
+    </div>
+  </div>
+  <div id="map"></div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bnav">
+  <div class="ni active" id="ni-feed" onclick="switchScreen('feed')">
+    <div class="ni-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+    </div>
+    <div class="ni-label">Home</div>
+  </div>
+  <div class="ni" id="ni-map" onclick="switchScreen('map')">
+    <div class="ni-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>
+      </svg>
+    </div>
+    <div class="ni-label">Map</div>
+  </div>
+  <div class="ni-fab" onclick="switchScreen('drop')">
+    <div class="ni-fab-btn"><svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" filter="url(#spoon-shadow)">
+        <!-- Bowl outer shape -->
+        <ellipse cx="16" cy="10" rx="7" ry="8.5" fill="url(#bowl-grad)"/>
+        <!-- Bowl depth shadow -->
+        <ellipse cx="16" cy="10" rx="7" ry="8.5" fill="url(#bowl-shadow)"/>
+        <!-- Bowl inner reflection -->
+        <ellipse cx="13.5" cy="7.5" rx="2.5" ry="3" fill="white" opacity="0.5"/>
+        <ellipse cx="13" cy="7" rx="1.2" ry="1.8" fill="white" opacity="0.7"/>
+        <!-- Handle -->
+        <path d="M14.5 18 C14.2 20 13.8 23 14 28 C14.1 29 14.5 29.5 16 29.5 C17.5 29.5 17.9 29 18 28 C18.2 23 17.8 20 17.5 18" fill="url(#handle-grad)"/>
+        <!-- Handle highlight line -->
+        <path d="M15.8 18.5 C15.6 21 15.4 24 15.5 27.5" stroke="white" stroke-width="0.6" stroke-linecap="round" opacity="0.6"/>
+        <!-- Handle edge shadows -->
+        <path d="M14.5 18 C14.2 20 13.8 23 14 28" stroke="#3a4558" stroke-width="0.4" opacity="0.5"/>
+        <path d="M17.5 18 C17.8 20 18.2 23 18 28" stroke="#3a4558" stroke-width="0.4" opacity="0.5"/>
+      </svg></div>
+    <div class="ni-fab-label">Drop</div>
+  </div>
+  <div class="ni" id="ni-gallery">
+    <div class="ni-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+    </div>
+    <div class="ni-label">Gallery</div>
+  </div>
+  <div class="ni" id="ni-profile">
+    <div class="ni-icon">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+    </div>
+    <div class="ni-label">Profile</div>
+  </div>
+</div>
+
+<!-- PHOTO MODAL -->
+<div id="photo-modal" style="
+  position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:600;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.3s;padding:20px;
+">
+  <div style="position:relative;width:100%;max-width:400px">
+    <button onclick="closeModal()" style="
+      position:absolute;top:-44px;right:0;background:rgba(255,255,255,0.1);
+      border:none;border-radius:50%;width:36px;height:36px;
+      color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    ">✕</button>
+    <img id="modal-img" src="" style="width:100%;border-radius:16px;object-fit:cover;aspect-ratio:1/1;display:block">
+    <div style="padding:12px 4px 0">
+      <div id="modal-user" style="font-weight:700;font-size:15px;color:#fff"></div>
+      <div id="modal-loc" style="font-size:12px;color:#aaa;margin-top:3px"></div>
+      <div id="modal-score" style="font-family:'Bebas Neue',sans-serif;font-size:22px;color:#FFD166;margin-top:6px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SUCCESS -->
+<div class="success" id="success">
+  <div class="success-sp">🥄</div>
+  <div class="success-t">SPOON DROPPED!</div>
+  <div class="success-s">Your spoon is pending validation.<br>We'll notify you when it hits the map. 🗺️</div>
+  <button class="success-btn" onclick="closeSuccess()">BACK TO FEED</button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const PHOTOS = [
+  'spoon1.png',
+  'spoon2.png',
+  'spoon3.png',
+  'spoon4.png',
+  'spoon1.png',
+  'spoon3.png',
+];
+
+const SPOONS = [
+  {id:1,user:'@spoon_god',av:'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=80&q=80',loc:'Tour Eiffel, Paris 🇫🇷',score:98,votes:342,caption:'Level: DIVINE. The Eiffel never seen this.',time:'2 min ago',badge:'legendary',photo:PHOTOS[0],lat:48.858,lng:2.294},
+  {id:2,user:'@davy_drops',av:'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&q=80',loc:'Bellecour, Lyon 🇫🇷',score:95,votes:521,caption:'The 5090 gave me 95/100. I am the algorithm.',time:'6h ago',badge:'legendary',photo:PHOTOS[1],lat:45.757,lng:4.832},
+  {id:3,user:'@cuillere_boy',av:'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=80&q=80',loc:'Colosseum, Rome 🇮🇹',score:87,votes:219,caption:'Romans had no idea what a spoon was. Fixed.',time:'14 min ago',badge:'epic',photo:PHOTOS[2],lat:41.890,lng:12.492},
+  {id:4,user:'@spoonzilla',av:'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=80&q=80',loc:'Shibuya, Tokyo 🇯🇵',score:91,votes:408,caption:'400 people watched. None understood.',time:'3h ago',badge:'legendary',photo:PHOTOS[3],lat:35.659,lng:139.700},
+  {id:5,user:'@greg_spoon',av:'https://images.unsplash.com/photo-1520813792240-56fc4a3765a7?w=80&q=80',loc:'Part-Dieu, Lyon 🇫🇷',score:62,votes:89,caption:'Reigning champion of Lyon. Bow down.',time:'5h ago',badge:'solid',photo:PHOTOS[4],lat:45.760,lng:4.860},
+  {id:6,user:'@the_spooner',av:'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&q=80',loc:'Times Square, NYC 🇺🇸',score:74,votes:156,caption:'Dropped in broad daylight. Zero shame.',time:'1h ago',badge:'solid',photo:PHOTOS[5],lat:40.758,lng:-73.985},
+];
+
+let votes={}, map=null, hasPhoto=false, hasGeo=false;
+
+function renderFeed(){
+  const c=document.getElementById('feed-scroll');
+  c.innerHTML='';
+  SPOONS.forEach((s,i)=>{
+    const d=document.createElement('div');
+    d.innerHTML=`
+      <div class="spoon-card" style="animation-delay:${i*0.07}s">
+        <div class="card-top">
+          <div class="card-av"><img src="${s.av}" alt="" onerror="this.style.display='none'"></div>
+          <div class="card-meta">
+            <div class="card-user">${s.user}</div>
+            <div class="card-loc">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              ${s.loc}
+            </div>
+          </div>
+          <div class="card-more">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+          </div>
+        </div>
+        <div class="card-media">
+          <img src="${s.photo}" alt="" loading="lazy">
+          <div class="card-score-badge">${s.score}/100</div>
+          <div class="card-badge-pill badge-${s.badge}">${s.badge.toUpperCase()}</div>
+        </div>
+        <div class="card-actions">
+          <div class="act ${votes[s.id]?'liked':''}" id="like-${s.id}" onclick="doVote(${s.id})">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="${votes[s.id]?'var(--hot)':'none'}" stroke="${votes[s.id]?'var(--hot)':'currentColor'}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+            <span class="act-count" id="vc-${s.id}">${s.votes+(votes[s.id]?1:0)}</span>
+          </div>
+          <div class="act" onclick="">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span class="act-count">${Math.floor(s.votes*0.12)}</span>
+          </div>
+          <div class="act" onclick="doShare(${s.id})">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+          </div>
+          <div class="act act-save">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+        </div>
+        <div class="card-caption">
+          <div class="card-caption-text"><strong>${s.user}</strong> ${s.caption}</div>
+          <div class="card-time">${s.time}</div>
+        </div>
+      </div>
+      <div class="feed-divider"></div>`;
+    c.appendChild(d);
+  });
+}
+
+function doVote(id){
+  const s=SPOONS.find(x=>x.id===id);
+  const el=document.getElementById('like-'+id);
+  const svg=el.querySelector('svg');
+  const count=document.getElementById('vc-'+id);
+  if(votes[id]){
+    // Unlike
+    votes[id]=false;
+    el.classList.remove('liked');
+    svg.setAttribute('fill','none');
+    svg.setAttribute('stroke','currentColor');
+    count.textContent=s.votes;
+  } else {
+    // Like with bounce animation
+    votes[id]=true;
+    el.classList.add('liked');
+    svg.setAttribute('fill','var(--hot)');
+    svg.setAttribute('stroke','var(--hot)');
+    count.textContent=s.votes+1;
+    // Bounce animation
+    svg.style.transform='scale(1.4)';
+    setTimeout(()=>svg.style.transform='scale(1)',200);
+  }
+}
+
+function doShare(id){
+  if(navigator.share) navigator.share({title:'SpoonDropping 🥄',text:'Check this spoon!',url:location.href});
+}
+
+function setTab(el){
+  document.querySelectorAll('.feed-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  function toggleTheme(){
+  const isLight = document.body.classList.toggle('light');
+  document.getElementById('theme-icon-dark').style.display = isLight ? 'none' : 'block';
+  document.getElementById('theme-icon-light').style.display = isLight ? 'block' : 'none';
+  document.querySelector('meta[name="theme-color"]').content = isLight ? '#fafafa' : '#0a0a0a';
+  // Update map tiles
+  if(map) {
+    map.eachLayer(l => { if(l._url) map.removeLayer(l); });
+    const tiles = isLight
+      ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    L.tileLayer(tiles, {maxZoom:19}).addTo(map);
+  }
+}
+
+// Check system preference
+if(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches){
+  toggleTheme();
+}
+
+function openModal(s){
+  document.getElementById('modal-img').src = s.photo;
+  document.getElementById('modal-user').textContent = s.user;
+  document.getElementById('modal-loc').textContent = '📍 ' + s.loc;
+  document.getElementById('modal-score').textContent = s.score + '/100 🔥 ' + s.votes;
+  const m = document.getElementById('photo-modal');
+  m.style.opacity='1'; m.style.pointerEvents='all';
+}
+function closeModal(){
+  const m = document.getElementById('photo-modal');
+  m.style.opacity='0'; m.style.pointerEvents='none';
+}
+
+renderFeed();
+}
+
+// DROP
+function handlePhoto(inp){
+  const f=inp.files[0]; if(!f) return;
+  const url=URL.createObjectURL(f);
+  const dz=document.getElementById('dz');
+  let img=dz.querySelector('img.preview'); if(img) img.remove();
+  img=document.createElement('img'); img.className='preview'; img.src=url;
+  dz.insertBefore(img, dz.firstChild);
+  dz.classList.add('has-img');
+  const ov=document.getElementById('dz-overlay');
+  ov.querySelector('.dz-title').textContent='Looking fire! 🥄';
+  ov.querySelector('.dz-sub').textContent='Tap to change photo';
+  hasPhoto=true; checkReady();
+}
+
+function detectGeo(){
+  const v=document.getElementById('geo-val'),r=document.getElementById('geo-row');
+  v.textContent='Detecting...';
+  navigator.geolocation.getCurrentPosition(p=>{
+    window._lat=p.coords.latitude; window._lng=p.coords.longitude;
+    v.textContent=`${p.coords.latitude.toFixed(4)}, ${p.coords.longitude.toFixed(4)}`;
+    v.className='geo-val ok'; r.className='geo-row ok';
+    document.getElementById('geo-arrow').style.stroke='var(--green)';
+    hasGeo=true; checkReady();
+  },()=>{
+    window._lat=45.757; window._lng=4.832;
+    v.textContent='Lyon, France 🇫🇷 (demo)';
+    v.className='geo-val ok'; r.className='geo-row ok';
+    hasGeo=true; checkReady();
+  });
+}
+
+function checkReady(){
+  const u=document.getElementById('d-user').value.trim();
+  document.getElementById('drop-btn').disabled=!(hasPhoto&&hasGeo&&u.length>0);
+}
+
+function submitSpoon(){
+  const btn=document.getElementById('drop-btn');
+  btn.textContent='⏳ Sending...'; btn.disabled=true;
+  setTimeout(()=>{
+    document.getElementById('success').classList.add('show');
+    btn.textContent='🥄 DROP MY SPOON'; hasPhoto=false; hasGeo=false;
+    document.getElementById('d-user').value='';
+    document.getElementById('d-cap').value='';
+    document.getElementById('geo-val').textContent='Tap to detect location';
+    document.getElementById('geo-val').className='geo-val';
+    document.getElementById('geo-row').className='geo-row';
+    const dz=document.getElementById('dz');
+    const img=dz.querySelector('img.preview'); if(img) img.remove();
+    dz.classList.remove('has-img');
+    document.getElementById('dz-overlay').querySelector('.dz-title').textContent='Take your Spoon shot';
+    document.getElementById('dz-overlay').querySelector('.dz-sub').textContent='Strike the pose. Drop it on the map.';
+  },1400);
+}
+
+function closeSuccess(){
+  document.getElementById('success').classList.remove('show');
+  switchScreen('feed');
+}
+
+// SWITCH
+function switchScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+  document.getElementById(name+'-screen').classList.remove('hidden');
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  const el=document.getElementById('ni-'+name);
+  if(el) el.classList.add('active');
+  if(name==='map') initMap();
+}
+
+// MAP
+function makeSpoonPin(score) {
+    const glowColor = score >= 90 ? 'rgba(255,77,109,0.6)' : score >= 75 ? 'rgba(255,209,102,0.6)' : 'rgba(0,0,0,0.3)';
+    const bgColor = score >= 90 ? '#FF4D6D' : score >= 75 ? '#FFD166' : '#555';
+    return `<div style="
+      position:relative;
+      width:44px;height:44px;
+      border-radius:50%;
+      background:${bgColor};
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 4px 14px ${glowColor}, 0 2px 6px rgba(0,0,0,0.4);
+      border:2px solid rgba(255,255,255,0.3);
+    ">
+      <img src="spoon_real.png" style="width:30px;height:30px;object-fit:contain;transform:rotate(-45deg);filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3))">
+    </div>`;
+  }
+
+function initMap(){
+  if(map) return;
+  map=L.map('map',{center:[30,10],zoom:2,zoomControl:false,attributionControl:false});
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{maxZoom:19}).addTo(map);
+  SPOONS.forEach(s=>{
+    const ico=L.divIcon({html:`<div style="cursor:pointer">${makeSpoonPin(s.score)}</div>`,
+      iconSize:[44,44],iconAnchor:[22,22],className:''});
+    L.marker([s.lat,s.lng],{icon:ico}).addTo(map)
+      .on('click', () => openModal(s));
+  });
+}
+
+function centerMap(){
+  if(!map) return;
+  navigator.geolocation.getCurrentPosition(p=>map.setView([p.coords.latitude,p.coords.longitude],13),()=>map.setView([45.757,4.832],13));
+}
+
+function toggleTheme(){
+  const isLight = document.body.classList.toggle('light');
+  document.getElementById('theme-icon-dark').style.display = isLight ? 'none' : 'block';
+  document.getElementById('theme-icon-light').style.display = isLight ? 'block' : 'none';
+  document.querySelector('meta[name="theme-color"]').content = isLight ? '#fafafa' : '#0a0a0a';
+  // Update map tiles
+  if(map) {
+    map.eachLayer(l => { if(l._url) map.removeLayer(l); });
+    const tiles = isLight
+      ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    L.tileLayer(tiles, {maxZoom:19}).addTo(map);
+  }
+}
+
+// Check system preference
+if(window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches){
+  toggleTheme();
+}
+
+function openModal(s){
+  document.getElementById('modal-img').src = s.photo;
+  document.getElementById('modal-user').textContent = s.user;
+  document.getElementById('modal-loc').textContent = '📍 ' + s.loc;
+  document.getElementById('modal-score').textContent = s.score + '/100 🔥 ' + s.votes;
+  const m = document.getElementById('photo-modal');
+  m.style.opacity='1'; m.style.pointerEvents='all';
+}
+function closeModal(){
+  const m = document.getElementById('photo-modal');
+  m.style.opacity='0'; m.style.pointerEvents='none';
+}
+
+renderFeed();
+</script>
+</body>
+</html>
